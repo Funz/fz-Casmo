@@ -1,0 +1,12 @@
+{
+    "id": "CASMO",
+    "varprefix": "$",
+    "formulaprefix": "@",
+    "delim": "{}",
+    "commentline": "*",
+    "output": {
+        "burnup": "grep -A 1000 'BURNUP' output.txt | grep -E '^[[:space:]]*[0-9]' | awk '{print $1}'",
+        "k_inf": "grep -A 1000 'BURNUP' output.txt | grep -E '^[[:space:]]*[0-9]' | awk '{print $2}'",
+        "m2": "grep -A 1000 'BURNUP' output.txt | grep -E '^[[:space:]]*[0-9]' | awk '{print $3}'"
+    }
+}

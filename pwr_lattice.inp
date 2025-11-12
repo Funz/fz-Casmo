@@ -1,0 +1,37 @@
+* Sample CASMO5 input file for PWR lattice burnup calculation
+* This is a parametric template using fz syntax
+* Variables: enrichment, fuel_temp, moderator_temp, burnup_steps
+
+TTL * PWR 17x17 Assembly Parametric Study
+
+* Geometry definition
+PCA 1.26                    * Pin pitch in cm
+
+* Material definitions
+FUE 1 10.42/$enrichment     * UO2 fuel with variable enrichment
+CLA 2 ZIRC4                 * Zircaloy-4 cladding
+MOD 3 $moderator_temp/1.0   * Water moderator at variable temperature
+
+* Pin cell definition
+PIN 1
+1 0.4096                    * Fuel radius
+2 0.418 0.475              * Cladding inner and outer radius
+3                          * Moderator
+
+* Lattice definition - 17x17 PWR assembly
+LPI 17 1.26
+
+* State point definition
+STA                        * State definition
+TFU=$fuel_temp            * Fuel temperature (K)
+TMO=$moderator_temp       * Moderator temperature (K)
+BOR=600                   * Boron concentration (ppm)
+
+* Depletion calculation
+DEP -40                    * Depletion to @{$burnup_steps} MWd/kgU
+@{burnup_values = " ".join([str(i) for i in range(0, int($burnup_steps)+1, 5)])}
+BUP
+@{burnup_values}
+
+* Output options
+PRI 1                      * Print level

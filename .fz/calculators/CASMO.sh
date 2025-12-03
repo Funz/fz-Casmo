@@ -3,7 +3,7 @@
 # CASMO5 calculator script for fz
 # This script runs CASMO5 calculations
 
-# Check if CASMO_PATH is set
+# Check if CASMO_PATH is set (CMSHOME for cas5 script)
 if [ -z "$CASMO_PATH" ]; then
   echo "Error: CASMO_PATH environment variable is not set"
   echo "Please set CASMO_PATH to your CASMO5 installation directory"
@@ -11,13 +11,16 @@ if [ -z "$CASMO_PATH" ]; then
   exit 1
 fi
 
-# Check if CASMO5 executable exists
-CASMO_EXE="$CASMO_PATH/casmo5"
-if [ ! -f "$CASMO_EXE" ]; then
+# Set CMSHOME for cas5 script
+export CMSHOME="$CASMO_PATH"
+
+# Check if cas5 script exists
+CAS5_SCRIPT="$CASMO_PATH/cas5"
+if [ ! -f "$CAS5_SCRIPT" ]; then
   # Try alternative path
-  CASMO_EXE="$CASMO_PATH/bin/casmo5"
-  if [ ! -f "$CASMO_EXE" ]; then
-    echo "Error: CASMO5 executable not found at $CASMO_PATH/casmo5 or $CASMO_PATH/bin/casmo5"
+  CAS5_SCRIPT="$CASMO_PATH/bin/cas5"
+  if [ ! -f "$CAS5_SCRIPT" ]; then
+    echo "Error: cas5 script not found at $CASMO_PATH/cas5 or $CASMO_PATH/bin/cas5"
     exit 1
   fi
 fi
@@ -55,9 +58,13 @@ fi
 # Store process ID for tracking
 echo $$ >> PID
 
-# Run CASMO5 with the input file
-# Redirect output to output.txt for parsing
-$CASMO_EXE $INP > output.txt 2>&1 &
+# Get basename without extension for output file handling
+BASENAME="${INP%.*}"
+
+# Run CASMO5 using cas5 script
+# The cas5 script automatically generates basename.out and basename.cax
+# Use -p to avoid prompts, -k to clean existing output files
+$CAS5_SCRIPT -p -k "$INP" &
 PID_CASMO=$!
 echo $PID_CASMO >> PID
 wait $PID_CASMO

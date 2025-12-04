@@ -13,6 +13,7 @@ fi
 
 # Set CMSHOME for cas5 script
 export CMSHOME="$CASMO_PATH"
+export PATH=$CMSHOME/bin:$PATH
 
 # Check if cas5 script exists
 CAS5_SCRIPT="$CASMO_PATH/cas5"
@@ -37,7 +38,7 @@ if [ -d "$1" ]; then
   fi
   shift
 # If $* are files, find the input file
-elif [ $# -gt 1 ]; then
+elif [ $# -gt 0 ]; then
   INP=""
   for f in "$@"; do
     if [ -f "$f" ]; then

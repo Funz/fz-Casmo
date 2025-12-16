@@ -13,10 +13,28 @@ This plugin enables parametric studies with CASMO5 using the fz framework.
 
 ### Supported Output Variables
 
-The CASMO model extracts these output variables from burnup tables:
-- `burnup`: Burnup values (MWd/kgU)
-- `k_inf`: Infinite multiplication factor
-- `m2`: Migration area
+The CASMO model extracts these output variables from output files:
+
+#### For Depletion Calculations (*_dep.out files)
+When using depletion input files with `DEP` card, the following arrays are extracted from the summary table (one value per burnup step):
+- `burnup`: Burnup evolution [MWd/kgU]
+- `k_inf`: Infinite multiplication factor evolution
+- `m2`: Migration area evolution [cm²]
+- `u235_wt_pct`: U-235 weight percent evolution
+- `fissile_pu_wt_pct`: Fissile Pu weight percent evolution
+- `total_pu_wt_pct`: Total Pu weight percent evolution
+- `pin_power_peak`: Pin power peaking factor evolution
+
+#### For Single State Point Calculations (*.out files)
+For calculations without depletion, scalar values are extracted:
+- `k_inf`: Infinite multiplication factor (single value)
+- `m2`: Migration area (single value)
+- `power_peak`: Power peaking factor
+- `pin_power`: 2D pin power distribution array
+- `pin_exposure`: 2D pin exposure distribution array
+- `decay_constants`: Delayed neutron decay constants
+- `beta_eff`: Effective delayed neutron fraction
+- `neutron_generation_time`: Mean neutron generation time
 
 ## Installation
 
@@ -35,6 +53,7 @@ export CASMO_PATH="/path/to/casmo5"
 
 ### With fz Python API
 
+#### Single State Point Calculation
 ```python
 import fz
 
@@ -44,15 +63,41 @@ results = fz.fzr(
     input_variables={
         "enrichment": [3.0, 3.5, 4.0, 4.5],
         "fuel_temp": 900,
-        "moderator_temp": 580,
-        "burnup_steps": 50
+        "moderator_temp": 580
     },
     model="CASMO",
     calculators="localhost_CASMO",
     results_dir="my_results"
 )
 
-print(results[['enrichment', 'burnup', 'k_inf', 'm2']])
+print(results[['enrichment', 'k_inf', 'm2']])
+```
+
+#### Depletion Calculation
+```python
+import fz
+import pandas as pd
+
+# Example: Run depletion calculation with varying enrichment
+results = fz.fzr(
+    input_path="examples/CASMO/input_dep.inp",  # Input file with DEP card
+    input_variables={
+        "enrichment": [3.0, 3.5, 4.0],
+        "fuel_temp": 900,
+        "moderator_temp": 580
+    },
+    model="CASMO",
+    calculators="localhost_CASMO",
+    results_dir="depletion_results"
+)
+
+# Results contain arrays for each enrichment
+for idx, row in results.iterrows():
+    print(f"\nEnrichment: {row['enrichment']}%")
+    print(f"Burnup points: {row['burnup']}")
+    print(f"K-infinity evolution: {row['k_inf']}")
+    print(f"U-235 depletion: {row['u235_wt_pct']}")
+    print(f"Pu buildup: {row['total_pu_wt_pct']}")
 ```
 
 ### Directory Structure

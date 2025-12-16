@@ -5,14 +5,17 @@
     "delim": "{}",
     "commentline": "*",
     "output": {
-        "burnup": "grep -E '^[[:space:]]*[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+' *.out | tail -1 | awk '{print $8}'",
-        "k_inf": "grep '2D k-infinity:' *.out | sed -E 's/.*2D k-infinity:[[:space:]]+([0-9.]+).*/\\1/'",
-        "m2": "grep -E '^[[:space:]]*[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+[[:space:]]+[0-9]+\\.[0-9]+' *.out | tail -1 | awk '{print $11}'",
-        "power_peak": "grep 'Power Distribution' *.out | sed -E 's/.*Peak: LL = ([0-9.]+).*/\\1/'",
+        "burnup": "awk '/Burnup.*K-inf.*K-inf.*M2/{getline; flag=1; next} flag && /^[[:space:]]*$/{exit} flag && /^[[:space:]]+[0-9]+/ {if (NF > 10) print $8; else print $2}' *_dep.out 2>/dev/null | awk 'BEGIN{print \"[\"; c=0} {if (c>0) printf \",\"; printf \"%s\", $0; c++} END{print \"]\"}' || grep '2D k-infinity:' *.out 2>/dev/null | tail -1 | awk '{print $3}'",
+        "k_inf": "awk '/Burnup.*K-inf.*K-inf.*M2/{getline; flag=1; next} flag && /^[[:space:]]*$/{exit} flag && /^[[:space:]]+[0-9]+/ {if (NF > 10) print $9; else print $3}' *_dep.out 2>/dev/null | awk 'BEGIN{print \"[\"; c=0} {if (c>0) printf \",\"; printf \"%s\", $0; c++} END{print \"]\"}' || grep '2D k-infinity:' *.out 2>/dev/null | tail -1 | sed -E 's/.*2D k-infinity:[[:space:]]+([0-9.]+).*/\\1/'",
+        "m2": "awk '/Burnup.*K-inf.*K-inf.*M2/{getline; flag=1; next} flag && /^[[:space:]]*$/{exit} flag && /^[[:space:]]+[0-9]+/ {if (NF > 10) print $11; else print $5}' *_dep.out 2>/dev/null | awk 'BEGIN{print \"[\"; c=0} {if (c>0) printf \",\"; printf \"%s\", $0; c++} END{print \"]\"}' || grep 'Diff1' *.out 2>/dev/null | tail -1 | awk '{print $NF}'",
+        "u235_wt_pct": "awk '/Burnup.*K-inf.*K-inf.*M2/{getline; flag=1; next} flag && /^[[:space:]]*$/{exit} flag && /^[[:space:]]+[0-9]+/ {if (NF > 10) print $13; else print $7}' *_dep.out 2>/dev/null | awk 'BEGIN{print \"[\"; c=0} {if (c>0) printf \",\"; printf \"%s\", $0; c++} END{print \"]\"}'",
+        "fissile_pu_wt_pct": "awk '/Burnup.*K-inf.*K-inf.*M2/{getline; flag=1; next} flag && /^[[:space:]]*$/{exit} flag && /^[[:space:]]+[0-9]+/ {if (NF > 10) print $14; else print $8}' *_dep.out 2>/dev/null | awk 'BEGIN{print \"[\"; c=0} {if (c>0) printf \",\"; printf \"%s\", $0; c++} END{print \"]\"}'",
+        "total_pu_wt_pct": "awk '/Burnup.*K-inf.*K-inf.*M2/{getline; flag=1; next} flag && /^[[:space:]]*$/{exit} flag && /^[[:space:]]+[0-9]+/ {if (NF > 10) print $15; else print $9}' *_dep.out 2>/dev/null | awk 'BEGIN{print \"[\"; c=0} {if (c>0) printf \",\"; printf \"%s\", $0; c++} END{print \"]\"}'",
+        "pin_power_peak": "awk '/Burnup.*K-inf.*K-inf.*M2/{getline; flag=1; next} flag && /^[[:space:]]*$/{exit} flag && /^[[:space:]]+[0-9]+/ {if (NF > 10) print $12; else print $6}' *_dep.out 2>/dev/null | awk 'BEGIN{print \"[\"; c=0} {if (c>0) printf \",\"; printf \"%s\", $0; c++} END{print \"]\"}' || grep 'Power Distribution' *.out 2>/dev/null | sed -E 's/.*Peak: LL = ([0-9.]+).*/\\1/' | tail -1",
         "pin_power": "grep -A 18 'Power Distribution' *.out | tail -17 | sed 's/\\*//g' | awk 'NF>0 {lines[++n]=$0} END {print \"[\"; for(i=1;i<=n;i++) {printf \"[\"; split(lines[i],a); for(j=1;j<=length(a);j++) printf \"%s%s\", a[j], (j<length(a)?\",\":\"\"); printf \"]%s\\n\", (i<n?\",\":\"\")} print \"]\"}'",
         "pin_exposure": "grep -A 17 'Burnup in MWd/kg' *.out | tail -17 | awk 'NF>0 {lines[++n]=$0} END {print \"[\"; for(i=1;i<=n;i++) {printf \"[\"; split(lines[i],a); for(j=1;j<=length(a);j++) printf \"%s%s\", a[j], (j<length(a)?\",\":\"\"); printf \"]%s\\n\", (i<n?\",\":\"\")} print \"]\"}'",
-        "decay_constants": "grep 'Decay Constants:' *.out | awk '{printf \"[\"; for(i=3; i<=8; i++) printf \"%s%s\", $i, (i<8?\",\":\"\"); print \"]\"}'",
-        "beta_eff": "grep '(Beta Eff.)' *.out | sed -E 's/.*[[:space:]]([0-9]+\\.[0-9]+)[[:space:]]+\\(Beta Eff\\.\\).*/\\1/'",
-        "neutron_generation_time": "grep 'Mean Neutron Generation Time' *.out | sed -E 's/.*:[[:space:]]+([0-9.E+-]+).*/\\1/'"
+        "decay_constants": "grep 'Decay Constants:' *.out | tail -1 | awk '{printf \"[\"; for(i=3; i<=8; i++) printf \"%s%s\", $i, (i<8?\",\":\"\"); print \"]\"}'",
+        "beta_eff": "grep '(Beta Eff.)' *.out | tail -1 | sed -E 's/.*[[:space:]]([0-9]+\\.[0-9]+)[[:space:]]+\\(Beta Eff\\.\\).*/\\1/'",
+        "neutron_generation_time": "grep 'Mean Neutron Generation Time' *.out | tail -1 | sed -E 's/.*:[[:space:]]+([0-9.E+-]+).*/\\1/'"
     }
 }

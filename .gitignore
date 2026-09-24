@@ -24,3 +24,6 @@ Thumbs.db
 
 # Casmo files
 private_examples/
+
+# Keep output fixtures used by the tests
+!tests/fixtures/**

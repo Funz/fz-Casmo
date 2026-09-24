@@ -1,82 +1,59 @@
 #!/bin/bash
+# CASMO.sh — fz runner for Studsvik CASMO5.
+# Usage: CASMO.sh <compiled input file | directory containing one *.inp>
+#
+# Executable lookup (first match wins):
+#   1. $CASMO_CMD                       explicit command (e.g. /opt/studsvik/bin/cas5)
+#   2. $CASMO_PATH/cas5, $CASMO_PATH/bin/cas5
+#   3. cas5 found on PATH
+# Extra options passed to the launcher: $CASMO_OPTS (default "-p -k").
+# Produces <basename>.out (parsed by the CASMO model) and <basename>.cax
+# (lattice data for CMS-LINK / SIMULATE).
 
-# CASMO5 calculator script for fz
-# This script runs CASMO5 calculations
-
-# Check if CASMO_PATH is set (CMSHOME for cas5 script)
-if [ -z "$CASMO_PATH" ]; then
-  echo "Error: CASMO_PATH environment variable is not set"
-  echo "Please set CASMO_PATH to your CASMO5 installation directory"
-  echo "Example: export CASMO_PATH=/opt/studsvik/casmo5"
-  exit 1
-fi
-
-# Set CMSHOME for cas5 script
-export CMSHOME="$CASMO_PATH"
-export PATH=$CMSHOME/bin:$PATH
-
-# Check if cas5 script exists
-CAS5_SCRIPT="$CASMO_PATH/cas5"
-if [ ! -f "$CAS5_SCRIPT" ]; then
-  # Try alternative path
-  CAS5_SCRIPT="$CASMO_PATH/bin/cas5"
-  if [ ! -f "$CAS5_SCRIPT" ]; then
-    echo "Error: cas5 script not found at $CASMO_PATH/cas5 or $CASMO_PATH/bin/cas5"
-    exit 1
-  fi
-fi
-
-# If directory as input, cd into it
-if [ -d "$1" ]; then
-  cd "$1"
-  INP=`ls *.inp 2>/dev/null | head -n 1`
-  if [ -z "$INP" ]; then
-    INP=`ls *.cas 2>/dev/null | head -n 1`
-  fi
-  if [ -z "$INP" ]; then
-    INP=`ls * 2>/dev/null | grep -v '\.out$\|\.log$\|output\.txt$' | head -n 1`
-  fi
-  shift
-# If $* are files, find the input file
-elif [ $# -gt 0 ]; then
-  INP=""
-  for f in "$@"; do
-    if [ -f "$f" ]; then
-      INP="$f"
-      break
-    fi
+if [ -n "$CASMO_CMD" ]; then
+  CAS5="$CASMO_CMD"
+elif [ -n "$CASMO_PATH" ]; then
+  export CMSHOME="${CMSHOME:-$CASMO_PATH}"
+  export PATH="$CASMO_PATH/bin:$PATH"
+  for c in "$CASMO_PATH/cas5" "$CASMO_PATH/bin/cas5"; do
+    [ -f "$c" ] && { CAS5="$c"; break; }
   done
-  if [ -z "$INP" ]; then
-    echo "No input file found. Exiting."
-    exit 1
-  fi
-  shift $#
 else
-  echo "Usage: $0 <input_file or input_directory>"
+  CAS5=$(command -v cas5)
+fi
+if [ -z "$CAS5" ]; then
+  echo "CASMO5 launcher not found: set CASMO_CMD, or CASMO_PATH (install dir), or put cas5 on PATH" >&2
   exit 2
 fi
 
-# Store process ID for tracking
-echo $$ >> PID
-
-# Get basename without extension for output file handling
+# Locate the input file. fz passes every file of the case (static files included)
+# as arguments, in no guaranteed order: take the first *.inp / *.cas among them.
+if [ -d "$1" ]; then cd "$1" || exit 2; set --; fi
+INP=""
+for a in "$@"; do case "$a" in *.inp|*.cas) INP="$a"; break ;; esac; done
+[ -z "$INP" ] && INP=$(ls *.inp *.cas 2>/dev/null | head -n 1)
+if [ -z "$INP" ] || [ ! -f "$INP" ]; then
+  echo "No CASMO input file (*.inp, *.cas) found" >&2
+  exit 2
+fi
 BASENAME="${INP%.*}"
 
-# Run CASMO5 using cas5 script
-# The cas5 script automatically generates basename.out and basename.cax
-# Use -p to avoid prompts, -k to clean existing output files
-$CAS5_SCRIPT -p -k "$INP" &
+# Run, recording the child PID so that fz can kill it on interrupt
+# $CAS5 and $CASMO_OPTS are intentionally unquoted (may hold a command with options)
+$CAS5 ${CASMO_OPTS--p -k} "$INP" &
 PID_CASMO=$!
 echo $PID_CASMO >> PID
 wait $PID_CASMO
-
-# Store the exit code
 EXIT_CODE=$?
+rm -f PID
 
-# Clean up PID file
-if [ -f "PID" ]; then
-  rm -f "PID"
+if [ $EXIT_CODE -ne 0 ]; then
+  echo "CASMO5 exited with status $EXIT_CODE" >&2
+  exit $EXIT_CODE
 fi
-
-# Exit with CASMO's exit code
-exit $EXIT_CODE
+# A zero exit status without an output file is still a failure
+if [ ! -s "$BASENAME.out" ]; then
+  echo "CASMO5 produced no $BASENAME.out" >&2
+  exit 1
+fi
+exit 0

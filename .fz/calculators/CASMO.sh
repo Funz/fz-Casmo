@@ -26,17 +26,12 @@ if [ -z "$CAS5" ]; then
   exit 2
 fi
 
-# Locate the input file
-if [ -d "$1" ]; then
-  cd "$1" || exit 2
-  INP=$(ls *.inp 2>/dev/null | head -n 1)
-  [ -z "$INP" ] && INP=$(ls *.cas 2>/dev/null | head -n 1)
-elif [ -f "$1" ]; then
-  INP="$1"
-else
-  echo "Usage: $0 <input file | input directory>" >&2
-  exit 2
-fi
+# Locate the input file. fz passes every file of the case (static files included)
+# as arguments, in no guaranteed order: take the first *.inp / *.cas among them.
+if [ -d "$1" ]; then cd "$1" || exit 2; set --; fi
+INP=""
+for a in "$@"; do case "$a" in *.inp|*.cas) INP="$a"; break ;; esac; done
+[ -z "$INP" ] && INP=$(ls *.inp *.cas 2>/dev/null | head -n 1)
 if [ -z "$INP" ] || [ ! -f "$INP" ]; then
   echo "No CASMO input file (*.inp, *.cas) found" >&2
   exit 2

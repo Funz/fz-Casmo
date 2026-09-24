@@ -138,3 +138,14 @@ def test_runner_without_launcher_fails_clearly(project, tmp_path):
                           capture_output=True, text=True, env=env)
     assert proc.returncode == 2
     assert "CASMO5 launcher not found" in proc.stderr
+
+
+def test_fzr_with_static_file_first(project):
+    """Static files are passed to the runner too: it must still pick the deck."""
+    Path("aaa_library.dat").write_text("shared data\n")
+    rows = fz_cli("fzr", "--input_path", str(EXAMPLE), "--model", "CASMO",
+                  "--input_variables", json.dumps({"enrichment": 4.0}),
+                  "--input_static", "aaa_library.dat",
+                  "--results_dir", "results", env=mock_env())
+    assert rows[0]["status"] == "done"
+    assert rows[0]["k_inf"] == pytest.approx(1.3)

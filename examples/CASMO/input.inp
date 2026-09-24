@@ -1,37 +1,33 @@
-* Sample CASMO5 input file for PWR lattice burnup calculation
-* This is a parametric template using fz syntax
-* Variables: enrichment, fuel_temp, moderator_temp, burnup_steps
-
-TTL * PWR 17x17 Assembly Parametric Study
-
-* Geometry definition
-PCA 1.26                    * Pin pitch in cm
-
-* Material definitions
-FUE 1 10.42/${enrichment}     * UO2 fuel with variable enrichment
-CLA 2 ZIRC4                 * Zircaloy-4 cladding
-MOD 3 ${moderator_temp}/1.0   * Water moderator at variable temperature
-
-* Pin cell definition
-PIN 1
-1 0.4096                    * Fuel radius
-2 0.418 0.475              * Cladding inner and outer radius
-3                          * Moderator
-
-* Lattice definition - 17x17 PWR assembly
-LPI 17 1.26
-
-* State point definition
-STA                        * State definition
-TFU=${fuel_temp}            * Fuel temperature (K)
-TMO=${moderator_temp}       * Moderator temperature (K)
-BOR=600                   * Boron concentration (ppm)
-
-* Depletion calculation
-DEP -40                    * Depletion to @{${burnup_steps}} MWd/kgU
-@{burnup_values = " ".join([str(i) for i in range(0, int(${burnup_steps})+1, 5)])}
-BUP
-@{burnup_values}
-
-* Output options
-PRI 1                      * Print level
+TTL * PWR 17x17 UO2 lattice - fz parametric template
+* fz parameters use the dollar-brace syntax (with default after "~"),
+* formulas the at-brace syntax; "*@" lines are formula context (CASMO comments).
+* Illustrative deck: check card syntax against the CASMO5 user manual
+* for the version in use before production runs.
+*@ def heavy_density(td): return round(10.96 * td, 3)
+*
+* State: fuel temperature (K), moderator temperature (K), boron (ppm)
+TFU=${fuel_temp~900} TMO=${moderator_temp~580} BOR=${boron~600}
+* Power density (kW/l)
+PDE ${power_density~104.5} 'KWL'
+* Assembly: 17x17, pin pitch (cm), assembly pitch (cm)
+PWR 17 1.26 21.50
+* UO2 fuel: density (g/cc) / U-235 enrichment (wt%)
+FUE 1 @{heavy_density(${theoretical_density~0.95})}/${enrichment~4.0}
+* Fuel pin (pellet, clad inner, clad outer radii) and guide tube
+PIN 1 0.4096 0.418 0.475
+PIN 2 0.573 0.613/'MOD' 'BOX'
+* Octant pin layout (2 = guide tube)
+LPI
+2
+1 1
+1 1 1
+2 1 1 2
+1 1 1 1 1
+1 1 1 1 1 2
+2 1 1 2 1 1 1
+1 1 1 1 1 1 1 1
+1 1 1 1 1 1 1 1 1
+* Depletion to the target burnup (MWd/kgHM), default step sequence
+DEP -${burnup_max~60}
+STA
+END

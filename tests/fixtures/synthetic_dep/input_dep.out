@@ -1,0 +1,9 @@
+ SYNTHETIC FIXTURE - hand-written in the layout assumed by the CASMO model parsers.
+ Not produced by CASMO5: replace by (or add next to it) a real output excerpt.
+
+   No  Burnup   K-inf    K-inf(PC)  M2     Pin-peak  U235   PuFiss  PuTot
+       MWd/kg                       cm2              wt%    wt%     wt%
+    1   0.000   1.30000  1.30000   60.10  1.100     4.000  0.000   0.000
+    2  10.000   1.20000  1.20010   61.20  1.080     3.100  0.400   0.500
+    3  20.000   1.10000  1.10020   62.30  1.060     2.300  0.600   0.800
+

@@ -22,6 +22,7 @@
         "hist_void": "grep 'HVOI=' *.out 2>/dev/null | tail -1 | sed -E 's/.*HVOI=[[:space:]]*([0-9.]+).*/\\1/' || grep 'Void' *.out 2>/dev/null | tail -1 | awk '{print $2}'",
         "hist_tfu": "grep 'HTFU=' *.out 2>/dev/null | tail -1 | sed -E 's/.*HTFU=[[:space:]]*([0-9.]+).*/\\1/' || grep 'TFU' *.out 2>/dev/null | head -1 | awk '{print $2}'",
         "hist_tmo": "grep 'HTMO=' *.out 2>/dev/null | tail -1 | sed -E 's/.*HTMO=[[:space:]]*([0-9.]+).*/\\1/' || grep 'TMO' *.out 2>/dev/null | head -1 | awk '{print $2}'",
-        "hist_bor": "grep 'HBOR=' *.out 2>/dev/null | tail -1 | sed -E 's/.*HBOR=[[:space:]]*([0-9.]+).*/\\1/' || grep 'BOR' *.out 2>/dev/null | head -1 | awk '{print $2}'"
+        "hist_bor": "grep 'HBOR=' *.out 2>/dev/null | tail -1 | sed -E 's/.*HBOR=[[:space:]]*([0-9.]+).*/\\1/' || grep 'BOR' *.out 2>/dev/null | head -1 | awk '{print $2}'",
+        "cax_files": "python://sorted(p.name for p in base_dir.glob('*.cax'))"
     }
 }

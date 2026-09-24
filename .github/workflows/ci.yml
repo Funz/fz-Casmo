@@ -48,41 +48,11 @@ jobs:
           bash -n "$f"
         done
     
-    - name: Test fzi (parse variables)
+    - name: Run wrapper tests (mock CASMO5 launcher + output fixtures)
       run: |
-        python -c "
-        import fz
-        variables = fz.fzi('examples/CASMO/input.inp', 'CASMO')
-        print(f'Variables found: {list(variables.keys())}')
-        assert 'enrichment' in variables, 'Variable enrichment not found'
-        print('✓ fzi test passed')
-        "
-    
-    - name: Test fzc (compile input)
-      run: |
-        python -c "
-        import fz
-        import tempfile
-        import os
-        with tempfile.TemporaryDirectory() as tmpdir:
-            fz.fzc('examples/CASMO/input.inp', {'enrichment': 4.0, 'fuel_temp': 900, 'moderator_temp': 580, 'burnup_steps': 50}, 'CASMO', output_dir=tmpdir)
-            # Find the compiled file
-            for root, dirs, files in os.walk(tmpdir):
-                for f in files:
-                    if f == 'input.inp':
-                        compiled = os.path.join(root, f)
-                        assert os.path.exists(compiled), 'Compiled file not created'
-                        with open(compiled) as cf:
-                            content = cf.read()
-                            assert '4.0' in content or '4' in content, 'Variable not substituted'
-                        break
-        print('✓ fzc test passed')
-        "
+        pip install pytest
+        pytest tests/ -v
 
-    - name: Run plugin tests
-      run: |
-        python tests/test_plugin.py
-    
   lint:
     name: Lint
     runs-on: ubuntu-latest

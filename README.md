@@ -1,235 +1,115 @@
-# fz-casmo
+# fz-Casmo
 
-A [Funz](https://github.com/Funz/fz) plugin for CASMO5, Studsvik's advanced lattice physics code for Light Water Reactors.
+[fz](https://github.com/Funz/fz) wrapper for **CASMO5**, Studsvik's lattice physics
+code for light water reactors: parametric lattice calculations (enrichment, state
+point, depletion...) run locally, over SSH or on SLURM.
 
-This plugin enables parametric studies with CASMO5 using the fz framework.
+For core calculations with SIMULATE, and the CASMO → CMS-LINK → SIMULATE chain, see
+[fz-Simulate](https://github.com/Funz/fz-Simulate).
 
-## Features
+## Requirements
 
-### Input Syntax
-- **Variable syntax**: `${variable_name}`
-- **Formula syntax**: `@{formula}`
-- **Comment character**: `*`
+- fz ≥ 1.2 (`pip install funz-fz`)
+- a licensed CASMO5 installation, reachable through one of (first match wins):
+  - `CASMO_CMD`: full launcher command, e.g. `export CASMO_CMD=/opt/studsvik/bin/cas5`
+  - `CASMO_PATH`: install directory containing `cas5` or `bin/cas5` (also sets `CMSHOME`)
+  - `cas5` on `PATH`
+- `CASMO_OPTS`: options given to the launcher (default `-p -k`; set it to an empty
+  string to pass none)
 
-### Supported Output Variables
-
-The CASMO model extracts these output variables from output files:
-
-#### For Depletion Calculations (*_dep.out files)
-When using depletion input files with `DEP` card, the following arrays are extracted from the summary table (one value per burnup step):
-- `burnup`: Burnup evolution [MWd/kgU]
-- `k_inf`: Infinite multiplication factor evolution
-- `m2`: Migration area evolution [cm²]
-- `u235_wt_pct`: U-235 weight percent evolution
-- `fissile_pu_wt_pct`: Fissile Pu weight percent evolution
-- `total_pu_wt_pct`: Total Pu weight percent evolution
-- `pin_power_peak`: Pin power peaking factor evolution
-
-**Depletion metadata** (scalar values):
-- `dep_target`: Target burnup from DEP card [MWd/kgU]
-- `num_burnup_steps`: Number of depletion steps performed
-- `hist_void`: Historical (depletion-averaged) void fraction [%]
-- `hist_tfu`: Historical fuel temperature [K]
-- `hist_tmo`: Historical moderator temperature [K]
-- `hist_bor`: Historical boron concentration [ppm]
-
-#### For Single State Point Calculations (*.out files)
-For calculations without depletion, scalar values are extracted:
-- `k_inf`: Infinite multiplication factor (single value)
-- `m2`: Migration area (single value)
-- `power_peak`: Power peaking factor
-- `pin_power`: 2D pin power distribution array
-- `pin_exposure`: 2D pin exposure distribution array
-- `decay_constants`: Delayed neutron decay constants
-- `beta_eff`: Effective delayed neutron fraction
-- `neutron_generation_time`: Mean neutron generation time
-
-## Installation
-
-This plugin requires the [Funz/fz](https://github.com/Funz/fz) framework and a licensed copy of CASMO5.
+## Quick start
 
 ```bash
-pip install git+https://github.com/Funz/fz.git
+fz install model Casmo            # installs .fz/models/CASMO.json + calculator alias
+fzi examples/CASMO/input.inp --model CASMO --format json
+fzr examples/CASMO/input.inp --model CASMO \
+    --input_variables '{"enrichment": [3.0, 3.5, 4.0, 4.5]}' --format json
 ```
 
-Set the CASMO5 installation path:
-```bash
-export CASMO_PATH="/path/to/casmo5"
-```
-
-## Usage
-
-### With fz Python API
-
-#### Single State Point Calculation
 ```python
 import fz
-
-# Example: Run calculation with varying enrichment
-results = fz.fzr(
-    input_path="examples/CASMO/input.inp",
-    input_variables={
-        "enrichment": [3.0, 3.5, 4.0, 4.5],
-        "fuel_temp": 900,
-        "moderator_temp": 580
-    },
-    model="CASMO",
-    calculators="localhost_CASMO",
-    results_dir="my_results"
-)
-
-print(results[['enrichment', 'k_inf', 'm2']])
+results = fz.fzr("examples/CASMO/input.inp",
+                 {"enrichment": [3.0, 3.5, 4.0, 4.5], "boron": [0, 1000]},
+                 model="CASMO", results_dir="results")
+print(results[["enrichment", "boron", "k_inf", "status"]])
 ```
 
-#### Depletion Calculation
-```python
-import fz
-import pandas as pd
-
-# Example: Run depletion calculation with varying enrichment
-results = fz.fzr(
-    input_path="examples/CASMO/input_dep.inp",  # Input file with DEP card
-    input_variables={
-        "enrichment": [3.0, 3.5, 4.0],
-        "fuel_temp": 900,
-        "moderator_temp": 580
-    },
-    model="CASMO",
-    calculators="localhost_CASMO",
-    results_dir="depletion_results"
-)
-
-# Results contain arrays for each enrichment
-for idx, row in results.iterrows():
-    print(f"\nEnrichment: {row['enrichment']}%")
-    print(f"Burnup points: {row['burnup']}")
-    print(f"K-infinity evolution: {row['k_inf']}")
-    print(f"U-235 depletion: {row['u235_wt_pct']}")
-    print(f"Pu buildup: {row['total_pu_wt_pct']}")
-```
-
-### Directory Structure
-
-```
-your_project/
-├── examples/
-│   └── CASMO/
-│       └── input.inp           # Example input file
-├── .fz/
-│   ├── models/
-│   │   └── CASMO.json          # Model configuration
-│   └── calculators/
-│       ├── CASMO.sh            # Calculator script
-│       └── localhost_CASMO.json
-├── tests/
-│   └── test_plugin.py          # Test suite
-└── results/                    # Generated by fz
-```
-
-## Example Input File
-
-```casmo
-* Example input file for CASMO plugin
-* Variables are defined using ${variable_name} syntax
-
-* Material definitions
-FUE 1 10.42/${enrichment}     * UO2 fuel with variable enrichment
-MOD 3 ${moderator_temp}/1.0   * Water moderator
-
-* State point definition
-TFU=${fuel_temp}              * Fuel temperature (K)
-TMO=${moderator_temp}         * Moderator temperature (K)
-```
-
-In this example:
-- `${enrichment}`, `${fuel_temp}`, and `${moderator_temp}` are variable parameters that will be substituted by fz
-- Lines starting with `*` are comments
-
-## Model Configuration
-
-The model JSON file defines variable syntax and output parsing:
+No `--calculators` argument is needed: the installed `localhost_CASMO` alias is found
+automatically. For remote runs, add an alias with the same `models` key, e.g.
+`.fz/calculators/cluster_CASMO.json`:
 
 ```json
-{
-    "id": "CASMO",
-    "varprefix": "$",
-    "formulaprefix": "@",
-    "delim": "{}",
-    "commentline": "*",
-    "output": {
-        "burnup": "grep -A 1000 'BURNUP' output.txt | grep -E '^[[:space:]]*[0-9]' | awk '{print $1}'",
-        "k_inf": "grep -A 1000 'BURNUP' output.txt | grep -E '^[[:space:]]*[0-9]' | awk '{print $2}'",
-        "m2": "grep -A 1000 'BURNUP' output.txt | grep -E '^[[:space:]]*[0-9]' | awk '{print $3}'"
-    }
-}
+{ "uri": "slurm://user@cluster:batch", "models": { "CASMO": "bash /path/to/CASMO.sh" } }
 ```
 
-Fields:
-- `id`: Unique identifier for the model
-- `varprefix`: Character prefix for variables (e.g., `$` for `${x}`)
-- `formulaprefix`: Character prefix for formulas
-- `delim`: Delimiter characters around variable names
-- `commentline`: Character(s) that start a comment line
-- `output`: Mapping of output variable names to shell commands that extract their values
+## Input syntax
 
-### Calculator Configuration
+| Element | Syntax | Example |
+|---|---|---|
+| variable | `${name}` or `${name~default}` | `FUE 1 10.4/${enrichment~4.0}` |
+| formula | `@{expression}` (Python) | `@{heavy_density(${theoretical_density~0.95})}` |
+| formula context | `*@ ...` (a CASMO comment line) | `*@ def heavy_density(td): return round(10.96 * td, 3)` |
+| comment | `*` | |
 
-The calculator JSON files define how to execute your code:
+`examples/CASMO/input.inp` is an **illustrative** PWR 17x17 depletion deck with
+variables `enrichment`, `theoretical_density`, `fuel_temp`, `moderator_temp`, `boron`,
+`power_density`, `burnup_max` (all with defaults). Check the card syntax against the
+CASMO5 manual of your version before production use.
 
-```json
-{
-    "uri": "sh://",
-    "models": {
-        "CASMO": "bash .fz/calculators/CASMO.sh"
-    }
-}
-```
+## Outputs
 
-- `uri`: Execution method (`sh://` for local shell, `ssh://` for remote)
-- `models`: Mapping of model names to execution commands
+Parsed from the `*.out` file(s) of each case:
 
-## Remote Execution
+| Output | Content |
+|---|---|
+| `k_inf` | k-infinity: list per burnup step (depletion summary of `*_dep.out`), else last value |
+| `burnup` | burnup per step [MWd/kg] (depletion summary) |
+| `m2` | migration area [cm²] |
+| `pin_power_peak` | pin power peaking factor |
+| `u235_wt_pct`, `fissile_pu_wt_pct`, `total_pu_wt_pct` | isotopic contents per step |
+| `num_burnup_steps`, `dep_target` | depletion metadata |
+| `pin_power`, `pin_exposure` | 2D pin maps (last edit) |
+| `beta_eff`, `neutron_generation_time`, `decay_constants` | kinetics parameters |
+| `hist_void`, `hist_tfu`, `hist_tmo`, `hist_bor` | history state variables |
+| `cax_files` | names of the `*.cax` files produced (input to CMS-LINK) |
 
-To run calculations on a remote server:
+**Validation status:** the output parsers have not yet been checked against a
+reference set of real CASMO5 outputs. `tests/fixtures/` is where such outputs go (see
+below); until then, check the parsed values against your own `.out` files.
 
-```python
-results = fz.fzr(
-    input_path="examples/CASMO/input.inp",
-    input_variables={"enrichment": [3.0, 4.0, 5.0]},
-    model="CASMO",
-    calculators="ssh://user@server.com/bash /path/to/calculators/CASMO.sh",
-    results_dir="remote_results"
-)
-```
-
-## Troubleshooting
-
-### CASMO5 not found
-Ensure `CASMO_PATH` environment variable is set:
-```bash
-export CASMO_PATH="/path/to/casmo5"
-```
-
-### Calculator script not found
-Ensure the calculator script is executable:
-```bash
-chmod +x .fz/calculators/CASMO.sh
-```
-
-### Output variable not found
-Check the `output` section in your model JSON file. The shell commands must correctly parse your output files.
-
-## Running Tests
+## Tests
 
 ```bash
-python tests/test_plugin.py
+pip install funz-fz pytest
+pytest tests/
+```
+
+The tests run the fz CLI without CASMO5:
+
+- `tests/mock/cas5` is a fake launcher (k-inf = 0.9 + 0.1 × enrichment) used to check the
+  runner, alias discovery and error handling end to end;
+- every `tests/fixtures/<case>/` holding an `expected.json` is parsed with `fzo` and
+  compared with it. To validate the parsers on real results, add a directory with a
+  CASMO5 `.out` file (an excerpt is enough) and the expected values:
+
+  ```
+  tests/fixtures/pwr17_dep/input_dep.out
+  tests/fixtures/pwr17_dep/expected.json   {"k_inf": [1.30012, ...], "burnup": [0.0, ...]}
+  ```
+
+`tests/fixtures/synthetic_dep/` is hand-written in the layout the parsers assume; it
+is not a CASMO5 output.
+
+## Layout
+
+```
+.fz/models/CASMO.json                 model: syntax + output parsers
+.fz/calculators/CASMO.sh              runner (locates cas5, runs it, checks the .out)
+.fz/calculators/localhost_CASMO.json  local calculator alias
+examples/CASMO/input.inp              parametric example deck
+tests/                                mock launcher, fixtures, pytest suite
 ```
 
 ## License
 
-BSD 3-Clause License. See [LICENSE](LICENSE) file.
-
-## Related Links
-
-- [Funz/fz](https://github.com/Funz/fz) - Main framework
-- [CASMO5](https://www.studsvik.com/key-offerings/nuclear-simulation-software/software-products/casmo5/) - Studsvik product page
+BSD 3-Clause License. See [LICENSE](LICENSE).
